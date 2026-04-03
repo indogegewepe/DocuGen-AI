@@ -48,6 +48,7 @@ export default function Page() {
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null)
   const [generatedData, setGeneratedData] = useState<GenerateResponse | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
+  const [loadingGenerate, setLoadingGenerate] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
   const [jobStatus, setJobStatus] = useState<"pending" | "processing" | "completed" | "failed" | null>(null)
@@ -129,7 +130,9 @@ export default function Page() {
     ? jobStatus === "processing"
       ? "Generating..."
       : "Queued..."
-    : "Generate README"
+    : loadingGenerate
+      ? "Starting..."
+      : "Generate README"
 
   async function handleGenerate() {
     if (!canSubmit) {
@@ -140,6 +143,7 @@ export default function Page() {
     try {
       setError(null)
       setJobId(null)
+      setLoadingGenerate(true)
       if (!previewData) {
         const pre = await fetchPreview(repoUrl.trim())
         setPreviewData(pre)
@@ -160,6 +164,8 @@ export default function Page() {
       toast.error(message)
       setJobId(null)
       setJobStatus(null)
+    } finally {
+      setLoadingGenerate(false)
     }
   }
 
@@ -185,18 +191,18 @@ export default function Page() {
               value={repoUrl}
               onChange={(event) => setRepoUrl(event.target.value)}
               placeholder="https://github.com/owner/repo"
-              disabled={hasActiveJob}
+              disabled={loadingGenerate || hasActiveJob}
             />
             <Button
               onClick={handlePreview}
-              disabled={loadingPreview || hasActiveJob}
+              disabled={loadingPreview || loadingGenerate || hasActiveJob}
               variant="outline"
             >
               {loadingPreview ? "Loading..." : "Preview"}
             </Button>
             <Button
               onClick={handleGenerate}
-              disabled={hasActiveJob}
+              disabled={!canSubmit || loadingGenerate || loadingPreview || hasActiveJob}
             >
               {generateButtonLabel}
             </Button>
