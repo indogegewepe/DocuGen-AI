@@ -1,5 +1,20 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
+const rawApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim()
+
+const API_BASE_URL = rawApiBaseUrl
+  ? rawApiBaseUrl.replace(/\/+$/, "")
+  : process.env.NODE_ENV === "development"
+    ? "http://127.0.0.1:8000"
+    : ""
+
+function buildApiUrl(path: string): string {
+  if (!API_BASE_URL) {
+    throw new Error(
+      "NEXT_PUBLIC_API_BASE_URL belum di-set untuk environment ini"
+    )
+  }
+
+  return `${API_BASE_URL}${path}`
+}
 
 function getSessionId(): string {
   if (typeof window === "undefined") return ""
@@ -48,14 +63,22 @@ export type GenerateResponse = {
 }
 
 async function requestJson<T>(path: string, repoUrl: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Session-ID": getSessionId(),
-    },
-    body: JSON.stringify({ repo_url: repoUrl }),
-  })
+  let response: Response
+
+  try {
+    response = await fetch(buildApiUrl(path), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-ID": getSessionId(),
+      },
+      body: JSON.stringify({ repo_url: repoUrl }),
+    })
+  } catch {
+    throw new Error(
+      "Request ke backend gagal. Cek URL backend, HTTPS, dan konfigurasi CORS"
+    )
+  }
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as
@@ -79,9 +102,15 @@ export async function enqueueGenerateReadme(
 }
 
 export async function pollJobStatus(jobId: string): Promise<JobStatusResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/readme/status/${jobId}`
-  )
+  let response: Response
+
+  try {
+    response = await fetch(buildApiUrl(`/api/readme/status/${jobId}`))
+  } catch {
+    throw new Error(
+      "Polling ke backend gagal. Cek URL backend, HTTPS, dan konfigurasi CORS"
+    )
+  }
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as
       | { detail?: string }
