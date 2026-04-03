@@ -127,3 +127,107 @@
     @apply font-sans;
     }
 }
+
+@layer components {
+  .markdown-body {
+    @apply text-foreground;
+    background-color: unset !important;
+    padding: 10px !important;
+    color-scheme: light;
+  }
+
+  .dark .markdown-body {
+    color-scheme: dark;
+  }
+
+  /* Override github-markdown-css colors untuk light mode */
+  .markdown-body {
+    --color-canvas-default: var(--background);
+    --color-canvas-subtle: var(--muted);
+    --color-border-default: var(--border);
+    --color-border-muted: var(--muted-foreground);
+    --color-text-primary: var(--foreground);
+    --color-text-secondary: var(--muted-foreground);
+  }
+
+  /* Override github-markdown-css colors untuk dark mode */
+  .dark .markdown-body {
+    --color-canvas-default: var(--background);
+    --color-canvas-subtle: var(--muted);
+    --color-border-default: var(--border);
+    --color-border-muted: var(--muted-foreground);
+    --color-text-primary: var(--foreground);
+    --color-text-secondary: var(--muted-foreground);
+  }
+
+  /* Ensure code blocks have proper styling */
+  .markdown-body code {
+    @apply rounded bg-muted px-1.5 py-0.5 text-sm;
+  }
+
+  .markdown-body pre {
+    @apply bg-muted p-3 overflow-auto rounded-lg border border-border;
+  }
+
+  .markdown-body pre code {
+    @apply bg-transparent p-0;
+  }
+
+  /* Heading styles */
+  .markdown-body h1,
+  .markdown-body h2,
+  .markdown-body h3,
+  .markdown-body h4,
+  .markdown-body h5,
+  .markdown-body h6 {
+    @apply font-heading font-semibold;
+  }
+
+  /* Link styles */
+  .markdown-body a {
+    @apply text-primary underline-offset-2 hover:underline;
+  }
+
+  /* List styles */
+  .markdown-body ul,
+  .markdown-body ol {
+    @apply ml-4;
+  }
+
+  .markdown-body li {
+    @apply mb-1;
+  }
+
+  /* Table styles */
+  .markdown-body table {
+    @apply w-full border-collapse;
+  }
+
+  .markdown-body table tr {
+    @apply border-b border-border;
+  }
+
+  .markdown-body table td,
+  .markdown-body table th {
+    @apply border border-border px-3 py-2;
+  }
+
+  .markdown-body table th {
+    @apply bg-muted font-semibold;
+  }
+
+  /* Blockquote styles */
+  .markdown-body blockquote {
+    @apply border-l-4 border-primary pl-3 italic text-muted-foreground;
+  }
+
+  /* Image styles */
+  .markdown-body img {
+    @apply max-w-full rounded;
+  }
+
+  /* Horizontal rule */
+  .markdown-body hr {
+    @apply my-4 border-t border-border;
+  }
+}
