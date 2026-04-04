@@ -1,35 +1,66 @@
-![DoCuGen AI](https://raw.githubusercontent.com/indogegewepe/DocuGen-AI/refs/heads/master/public/DocuGenAI.jpeg)
-# DocuGen-AI
+![DocuGen AI](https://raw.githubusercontent.com/indogegewepe/DocuGen-AI/refs/heads/master/public/DocuGenAI.jpeg)
 
-Frontend modern berbasis **Next.js** untuk generasi dokumen berbasis AI. Didesain dengan antarmuka yang responsif, mendukung rendering Markdown yang kaya, validasi form yang ketat, serta integrasi API yang seamless.
+# 🚀 DocuGen AI
+
+**AI-Powered Documentation Generator**  
+Generate dokumentasi proyek secara otomatis dari repository atau input pengguna — cepat, rapi, dan siap pakai.
 
 ---
 
-## 📖 Deskripsi
+## 📌 Overview
 
-DocuGen-AI menyediakan antarmuka pengguna yang intuitif untuk membuat, mengedit, dan mengekspor dokumen secara otomatis. Aplikasi ini memanfaatkan ekosistem React modern dengan fokus pada performa, aksesibilitas, dan pengalaman pengembang yang optimal.
+**DocuGen AI** adalah aplikasi berbasis AI yang membantu developer menghasilkan dokumentasi (README, technical docs, dll.) secara otomatis dari repository atau input teks.
 
-Fitur utama:
-- 🎨 UI konsisten dengan `shadcn/ui` & Tailwind CSS v4
-- 📝 Rendering Markdown aman dengan syntax highlighting & sanitasi
-- 📊 State management & data fetching via TanStack Query
-- ✅ Validasi form tipe-aman menggunakan React Hook Form & Zod
-- 🌙 Dukungan tema terang/gelap (`next-themes`)
-- 📥 Ekspor dokumen langsung ke perangkat (`file-saver`)
+Frontend ini dibangun menggunakan **Next.js modern (App Router)** dengan fokus pada:
+- ⚡ Performa tinggi
+- 🧠 Integrasi AI yang seamless
+- 🎯 Developer Experience yang optimal
+- 📄 Output Markdown yang clean & ready
+
+---
+
+## ✨ Key Features
+
+- 🤖 **AI Documentation Generator**  
+  Generate README atau dokumentasi secara otomatis dari input repository atau teks
+
+- 📝 **Live Markdown Preview**  
+  Preview hasil dokumentasi secara real-time dengan rendering yang aman
+
+- 🎨 **Modern UI/UX**  
+  Dibangun dengan `shadcn/ui` + Tailwind CSS untuk tampilan clean & responsif
+
+- ✅ **Type-safe Form Validation**  
+  Validasi menggunakan React Hook Form
+  
+---
+
+## 🧠 How It Works
+
+1. User memasukkan:
+   - URL repository
+
+2. Frontend mengirim request ke backend AI
+
+3. Backend memproses & menghasilkan:
+   - README yang lebih terstruktur
+   - Markdown yang clean
+
+4. Hasil ditampilkan & bisa:
+   - Dipreview
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Kategori | Teknologi |
-|:---|:---|
+| Layer | Technology |
+|------|-----------|
 | **Framework** | Next.js 16 (App Router) |
-| **Bahasa** | TypeScript, React 19 |
-| **Styling & UI** | Tailwind CSS v4, `shadcn/ui`, Radix UI, `class-variance-authority` |
-| **State & Data** | TanStack Query, React Hook Form, Zod |
-| **Markdown** | `react-markdown`, `remark-gfm`, `rehype-highlight`, `rehype-sanitize` |
-| **Utilitas** | `lucide-react`, `sonner`, `next-themes`, `file-saver`, `github-markdown-css` |
-| **Tooling** | ESLint, Prettier, Turbopack, TypeScript |
+| **Language** | TypeScript, React 19 |
+| **UI & Styling** | Tailwind CSS v4, shadcn/ui |
+| **Markdown Engine** | react-markdown, remark-gfm, rehype-highlight |
+| **Utilities** | lucide-react, sonner, file-saver |
+| **Tooling** | ESLint, Prettier, Turbopack |
 
 ---
 
@@ -114,6 +145,12 @@ Kontribusi sangat diterima! Ikuti alur berikut untuk memastikan konsistensi kode
 6. Buka Pull Request dengan deskripsi perubahan yang jelas
 
 ---
+
+## ☕ Support Me
+
+[![Trakteer](https://img.shields.io/badge/Support-Trakteer-red?style=for-the-badge&logo=buymeacoffee)](https://teer.id/tsqh)
+
+Terima kasih atas dukungannya!
 
 ## 📄 Lisensi
 
