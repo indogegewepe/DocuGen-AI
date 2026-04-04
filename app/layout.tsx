@@ -26,6 +26,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const year = new Date().getFullYear()
+
   return (
     <html
       lang="en"
@@ -38,7 +40,7 @@ export default function RootLayout({
         montserratHeading.variable
       )}
     >
-      <body>
+      <body className="min-h-svh">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
@@ -48,6 +50,19 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteJsonLd) }}
         />
         <ThemeProvider>{children}</ThemeProvider>
+        <footer className="border-t bg-background/80 px-4 py-4 text-center text-sm text-muted-foreground md:px-6">
+          <p>
+            Copyright (c) {year}. Visit{" "}
+            <a
+              href="https://bagasuwaidha.my.id"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Tsiqoh
+            </a>
+          </p>
+        </footer>
         <Toaster richColors position="top-right" />
       </body>
     </html>
