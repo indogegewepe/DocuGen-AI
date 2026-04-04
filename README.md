@@ -1,3 +1,4 @@
+![DoCuGen AI](https://raw.githubusercontent.com/indogegewepe/DocuGen-AI/refs/heads/master/public/DocuGenAI.jpeg)
 # DocuGen-AI
 
 Frontend modern berbasis **Next.js** untuk generasi dokumen berbasis AI. Didesain dengan antarmuka yang responsif, mendukung rendering Markdown yang kaya, validasi form yang ketat, serta integrasi API yang seamless.
