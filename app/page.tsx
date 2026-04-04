@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import ReactMarkdown from "react-markdown"
 import rehypeHighlight from "rehype-highlight"
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize"
@@ -13,11 +13,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   fetchPreview,
+  generateReadmeStream,
   type GenerateResponse,
   type PreviewResponse,
 } from "@/lib/api"
-import { enqueueGenerateReadme, pollJobStatus } from "@/lib/api"
-import { useEffect } from "react"
 
 const githubUrlPattern = /^https:\/\/(www\.)?github\.com\/.+\/.+/i
 
@@ -44,56 +43,38 @@ function toPrettyConfig(configs: Record<string, unknown>) {
 }
 
 export default function Page() {
+  type GenerateStage =
+    | "idle"
+    | "validating"
+    | "preparing"
+    | "streaming"
+    | "finalizing"
+    | "done"
+
   const [repoUrl, setRepoUrl] = useState("")
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null)
   const [generatedData, setGeneratedData] = useState<GenerateResponse | null>(null)
+  const [streamingMarkdown, setStreamingMarkdown] = useState("")
   const [loadingPreview, setLoadingPreview] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [jobId, setJobId] = useState<string | null>(null)
-  const [jobStatus, setJobStatus] = useState<"pending" | "processing" | "completed" | "failed" | null>(null)
-  const [queuePosition, setQueuePosition] = useState(0)
-  const [totalPending, setTotalPending] = useState(0)
+  const [loadingGenerate, setLoadingGenerate] = useState(false)
+  const [generateStage, setGenerateStage] = useState<GenerateStage>("idle")
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const previewAbortRef = useRef<AbortController | null>(null)
+  const generateAbortRef = useRef<AbortController | null>(null)
+  const generateStartRef = useRef<number | null>(null)
 
-  // Poll job status setiap 1 detik saat ada job aktif
   useEffect(() => {
-    if (!jobId || !jobStatus) return
+    if (!loadingGenerate) return
 
-    const pollInterval = setInterval(async () => {
-      try {
-        const status = await pollJobStatus(jobId)
-        setJobStatus(status.status as any)
-        setQueuePosition(status.queue_position)
-        setTotalPending(status.total_pending)
-        setElapsedSeconds(status.elapsed_seconds)
+    const timer = window.setInterval(() => {
+      if (!generateStartRef.current) return
+      const delta = Date.now() - generateStartRef.current
+      setElapsedSeconds(Math.floor(delta / 1000))
+    }, 500)
 
-        if (status.status === "completed" && status.markdown) {
-          setGeneratedData({
-            repo: repoUrl.split("/").slice(-2).join("/"),
-            status: "ok",
-            message: "README markdown berhasil di-generate",
-            markdown: status.markdown,
-            preview: previewData?.preview ?? "",
-            configs: previewData?.configs ?? {},
-          })
-          setJobId(null)
-          setJobStatus(null)
-          setElapsedSeconds(0)
-          toast.success("README markdown berhasil di-generate")
-        } else if (status.status === "failed") {
-          setError(status.error || "Gagal generate README")
-          setJobId(null)
-          setJobStatus(null)
-          setElapsedSeconds(0)
-          toast.error(status.error || "Gagal generate README")
-        }
-      } catch (err) {
-        console.error("Polling error:", err)
-      }
-    }, 1000)
-
-    return () => clearInterval(pollInterval)
-  }, [jobId, jobStatus, previewData, repoUrl])
+    return () => window.clearInterval(timer)
+  }, [loadingGenerate])
 
   const configList = useMemo(
     () => toPrettyConfig(generatedData?.configs ?? previewData?.configs ?? {}),
@@ -112,10 +93,18 @@ export default function Page() {
       setError(null)
       setLoadingPreview(true)
       setGeneratedData(null)
-      const data = await fetchPreview(repoUrl.trim())
+
+      previewAbortRef.current?.abort()
+      const controller = new AbortController()
+      previewAbortRef.current = controller
+
+      const data = await fetchPreview(repoUrl.trim(), controller.signal)
       setPreviewData(data)
       toast.success("Preview README berhasil diambil")
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        return
+      }
       const message = err instanceof Error ? err.message : "Preview gagal"
       setError(message)
       toast.error(message)
@@ -124,12 +113,16 @@ export default function Page() {
     }
   }
 
-  const hasActiveJob = !!jobId && !!jobStatus && ["pending", "processing"].includes(jobStatus)
-  const generateButtonLabel = hasActiveJob
-    ? jobStatus === "processing"
-      ? "Generating..."
-      : "Queued..."
-    : "Generate README"
+  const generateButtonLabel = loadingGenerate ? "Generating..." : "Generate README"
+
+  function handleCancelGenerate() {
+    generateAbortRef.current?.abort()
+    setLoadingGenerate(false)
+    setGenerateStage("idle")
+    generateStartRef.current = null
+    setElapsedSeconds(0)
+    toast.info("Generate dibatalkan")
+  }
 
   async function handleGenerate() {
     if (!canSubmit) {
@@ -138,35 +131,103 @@ export default function Page() {
     }
 
     try {
+      setGenerateStage("validating")
       setError(null)
-      setJobId(null)
-      if (!previewData) {
-        const pre = await fetchPreview(repoUrl.trim())
-        setPreviewData(pre)
-      }
-      // Enqueue job dan mulai polling
-      const enqueueResult = await enqueueGenerateReadme(repoUrl.trim())
-      setJobId(enqueueResult.job_id)
-      setJobStatus("pending")
-      setQueuePosition(enqueueResult.queue_position)
-      setTotalPending(enqueueResult.total_pending)
+      setLoadingGenerate(true)
+      setStreamingMarkdown("")
+      setGeneratedData(null)
       setElapsedSeconds(0)
-      toast.info(
-        `Job masuk antrian. Posisi: ${enqueueResult.queue_position} dari ${enqueueResult.total_pending}`
-      )
+      generateStartRef.current = Date.now()
+
+      generateAbortRef.current?.abort()
+      const controller = new AbortController()
+      generateAbortRef.current = controller
+
+      let latestMeta: Omit<GenerateResponse, "markdown"> | null = null
+
+      setGenerateStage("preparing")
+
+      await generateReadmeStream(repoUrl.trim(), {
+        signal: controller.signal,
+        onMeta: (meta) => {
+          setGenerateStage("streaming")
+          latestMeta = meta
+          setPreviewData({
+            status: meta.status,
+            message: meta.message,
+            preview: meta.preview,
+            configs: meta.configs,
+            repo: meta.repo,
+            dataDiambil: meta.dataDiambil,
+          })
+        },
+        onDelta: (chunk) => {
+          setStreamingMarkdown((prev) => prev + chunk)
+        },
+        onDone: (markdown) => {
+          if (!latestMeta) {
+            throw new Error("Metadata generate tidak tersedia.")
+          }
+
+          setGenerateStage("finalizing")
+
+          setGeneratedData({
+            ...latestMeta,
+            markdown,
+          })
+
+          setGenerateStage("done")
+        },
+      })
+
+      toast.success("README markdown berhasil di-generate")
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        return
+      }
       const message = err instanceof Error ? err.message : "Generate gagal"
       setError(message)
       toast.error(message)
-      setJobId(null)
-      setJobStatus(null)
+    } finally {
+      setLoadingGenerate(false)
+      setGenerateStage("idle")
+      generateStartRef.current = null
     }
   }
 
   async function handleCopyMarkdown() {
-    if (!generatedData?.markdown) return
-    await navigator.clipboard.writeText(generatedData.markdown)
+    const content = generatedData?.markdown || streamingMarkdown
+    if (!content) return
+    await navigator.clipboard.writeText(content)
     toast.success("Markdown disalin")
+  }
+
+  const displayedMarkdown = loadingGenerate
+    ? streamingMarkdown
+    : (generatedData?.markdown ?? "")
+
+  const steps = [
+    { key: "validating", label: "Validasi URL repository" },
+    { key: "preparing", label: "Ambil README & konfigurasi" },
+    { key: "streaming", label: "AI menulis README" },
+    { key: "finalizing", label: "Finalisasi hasil" },
+  ] as const
+
+  function getStepStatus(step: (typeof steps)[number]["key"]) {
+    const order: Record<GenerateStage, number> = {
+      idle: -1,
+      validating: 0,
+      preparing: 1,
+      streaming: 2,
+      finalizing: 3,
+      done: 4,
+    }
+
+    const current = order[generateStage]
+    const target = order[step]
+    if (current > target || generateStage === "done") return "done"
+    if (current === target) return "active"
+    return "pending"
   }
 
   return (
@@ -180,51 +241,71 @@ export default function Page() {
             Aplikasi ini memungkinkan pengguna untuk memasukkan URL repository GitHub, mengambil README yang tersedia, serta mendeteksi file konfigurasi proyek. Selanjutnya, sistem akan menggunakan AI untuk menghasilkan README baru yang lebih terstruktur, rapi, dan profesional dalam format Markdown.
           </p>
 
-          <div className="mt-4 grid gap-2 md:grid-cols-[1fr_auto_auto]">
+          <div className="mt-4 grid gap-2 md:grid-cols-[1fr_auto_auto_auto]">
             <Input
               value={repoUrl}
               onChange={(event) => setRepoUrl(event.target.value)}
               placeholder="https://github.com/owner/repo"
-              disabled={hasActiveJob}
+              disabled={loadingGenerate}
             />
             <Button
               onClick={handlePreview}
-              disabled={loadingPreview || hasActiveJob}
+              disabled={loadingPreview || loadingGenerate}
               variant="outline"
             >
               {loadingPreview ? "Loading..." : "Preview"}
             </Button>
             <Button
               onClick={handleGenerate}
-              disabled={hasActiveJob}
+              disabled={loadingGenerate}
             >
               {generateButtonLabel}
             </Button>
+            {loadingGenerate ? (
+              <Button onClick={handleCancelGenerate} variant="destructive">
+                Cancel
+              </Button>
+            ) : null}
           </div>
         </div>
 
         {error ? (
           <Alert variant="destructive">
-            <AlertTitle>Terjadi masalah</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <div className="p-2 md:p-4">
+              <AlertTitle>Terjadi masalah</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </div>
           </Alert>
         ) : null}
 
-        {hasActiveJob && jobId ? (
+        {loadingGenerate ? (
           <Alert>
-            <AlertTitle>
-              {jobStatus === "processing" ? "⚙️ Generating..." : "⏳ Queued"}
-            </AlertTitle>
-            <AlertDescription>
-              {jobStatus === "processing" ? (
-                <>Sedang diproses oleh AI... (<strong>{elapsedSeconds}s</strong>)</>
-              ) : (
-                <>
-                  Posisi: <strong>#{queuePosition}</strong> dari{" "}
-                  <strong>{totalPending}</strong> job
-                </>
-              )}
-            </AlertDescription>
+            <div className="p-2 md:p-4">
+              <AlertTitle>Generating...</AlertTitle>
+              <AlertDescription>
+                Sedang memproses repository dan menghasilkan README dengan AI.
+                {" "}
+                <strong>({elapsedSeconds}s)</strong>
+              </AlertDescription>
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded bg-muted">
+                <div className="h-full w-1/3 animate-pulse rounded bg-primary" />
+              </div>
+              <div className="mt-3 grid gap-1 text-xs">
+                {steps.map((step) => {
+                  const status = getStepStatus(step.key)
+                  return (
+                    <div key={step.key} className="flex items-center gap-2">
+                      <span className="inline-block w-4 text-center">
+                        {status === "done" ? "✓" : status === "active" ? "•" : "○"}
+                      </span>
+                      <span className={status === "active" ? "font-medium" : "text-muted-foreground"}>
+                        {step.label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </Alert>
         ) : null}
 
@@ -287,7 +368,7 @@ export default function Page() {
             </h2>
             <Button
               onClick={handleCopyMarkdown}
-              disabled={!generatedData?.markdown}
+              disabled={!displayedMarkdown}
               variant="secondary"
               size="sm"
             >
@@ -298,12 +379,12 @@ export default function Page() {
             Hasil final dari endpoint generate backend.
           </p>
 
-          {generatedData?.markdown ? (
+          {displayedMarkdown ? (
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <div className="min-h-[520px] overflow-auto rounded-lg border bg-muted/40 p-4">
                 <h3 className="mb-2 text-sm font-medium">Raw Markdown</h3>
                 <pre className="text-xs whitespace-pre-wrap">
-                  {generatedData.markdown}
+                  {displayedMarkdown}
                 </pre>
               </div>
 
@@ -317,7 +398,7 @@ export default function Page() {
                       rehypeHighlight,
                     ]}
                   >
-                    {generatedData.markdown}
+                    {displayedMarkdown}
                   </ReactMarkdown>
                 </div>
               </div>
