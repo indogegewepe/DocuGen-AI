@@ -125,4 +125,4 @@ Proyek ini dilisensikan di bawah [Lisensi MIT](LICENSE). Silakan lihat file `LIC
 
 - 🐛 **Laporan Bug:** [GitHub Issues](https://github.com/indogegewepe/DocuGen-AI/issues)
 - 💬 **Diskusi:** [GitHub Discussions](https://github.com/indogegewepe/DocuGen-AI/discussions)
-- 📧 **Email:** [bagasuwaidha007@gmail.com](mailto: bagasuwaidha007@gmail.com)
+- 📧 **Email:** bagasuwaidha007@gmail.com
