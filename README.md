@@ -148,7 +148,7 @@ Kontribusi sangat diterima! Ikuti alur berikut untuk memastikan konsistensi kode
 
 ## ☕ Support Me
 
-[![Trakteer](https://img.shields.io/badge/Support-Trakteer-red?style=for-the-badge&logo=buymeacoffee)](https://teer.id/tsqh)
+[![Trakteer](https://img.shields.io/badge/Support-Trakteer-red?style=for-the-badge&logo=buymeacoffee)](https://teer.id/tsqh.)
 
 Terima kasih atas dukungannya!
 
